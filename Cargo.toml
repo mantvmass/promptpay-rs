@@ -10,3 +10,33 @@ documentation = "https://docs.rs/promptpay-rs"
 readme = "README.md"
 
 [dependencies]
+# QR Code generation
+qrcode = "0.14.1"
+image = "0.25.6"
+
+# Validation and error handling
+regex = "1.10"
+thiserror = "2.0.12"
+
+# WebAssembly support
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console"] }
+
+# Serialization for JSON output
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Optional features
+base64 = "0.22.1"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["qr-generation"]
+qr-generation = ["qrcode", "image"]
+wasm = ["wasm-bindgen", "js-sys", "web-sys"]
