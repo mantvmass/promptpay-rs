@@ -1,0 +1,12 @@
+[package]
+name = "promptpay-rs"
+version = "0.1.0"
+authors = ["Phumin Maliwan <kliop2317@gmail.com>"]
+edition = "2024"
+description = "A Rust library for generating PromptPay QR code payloads compliant with EMVCo standards, supporting Thai phone numbers and Tax IDs."
+license = "MIT"
+repository = "https://github.com/mantvmass/promptpay-rs"
+documentation = "https://docs.rs/promptpay-rs"
+readme = "README.md"
+
+[dependencies]
