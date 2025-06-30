@@ -62,6 +62,8 @@ This will generate a value like:
 
 You can use this value with a QR code generation library (e.g., `qrcode`) or default function `to_image` to create a scannable QR code for Thai banking apps.
 
+<img src="docs/example.gif">
+
 ## Documentation
 
 Comprehensive documentation is available at [docs.rs/promptpay-rs](https://docs.rs/promptpay-rs).
