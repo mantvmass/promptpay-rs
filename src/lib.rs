@@ -49,6 +49,7 @@ pub trait FormatterTrait {
     // fn to_image_byte(&self)
 }
 
+#[derive(Debug)]
 pub struct Formatter {
     payload: String,
 }
@@ -115,12 +116,15 @@ impl PromptPayQR {
     /// # Returns
     /// รหัสผู้รับเงินที่ถูกจัดรูปแบบแล้ว
     fn format_target(&self, id: &str) -> String {
-        let numbers = self.sanitize_target(id);
-        if numbers.len() >= 13 {
-            numbers
+        if id.len() >= 13 {
+            id.to_string()
+        } else if id.starts_with("0") {
+            // แปลงรหัสประเทศจาก "0" เป็น "66" เฉพาะตัวแรก และเติมศูนย์ให้ครบ 13 หลัก
+            let replaced = id.replacen("0", "66", 1);
+            format!("{:0>13}", replaced)
         } else {
-            let formatted = numbers.replace("0", "66");
-            format!("{:0>13}", formatted)
+            // เติมศูนย์ให้ครบ 13 หลัก
+            format!("{:0>13}", id)
         }
     }
 
@@ -131,6 +135,9 @@ impl PromptPayQR {
         if self.merchant_id.is_empty() {
             return Err(PromptPayError::new("Merchant ID is required"));
         }
+
+        // sanitize ข้อมูลที่รับมา
+        let merchant_id = self.sanitize_target(&self.merchant_id);
 
         let mut payload = String::new();
 
@@ -154,14 +161,14 @@ impl PromptPayQR {
         // - "01" สำหรับเบอร์โทรศัพท์
         // - "02" สำหรับ Tax ID
         // - "03" สำหรับ E-Wallet ID
-        let target_type = if self.merchant_id.len() >= 15 {
+        let target_type = if merchant_id.len() >= 15 {
             "03" // E-Wallet ID
-        } else if self.merchant_id.len() >= 13 {
+        } else if merchant_id.len() >= 13 {
             "02" // Tax ID
         } else {
             "01" // Phone Number
         };
-        let formatted_target = self.format_target(&self.merchant_id);
+        let formatted_target = self.format_target(&merchant_id);
         let merchant_id_field = format!(
             "{}{:02}{}",
             target_type,
@@ -225,33 +232,56 @@ impl PromptPayQR {
 mod tests {
     use super::*;
 
-    /// ทดสอบการสร้าง payload สำหรับ QR Code ที่มีจำนวนเงิน
+    /// ทดสอบการสร้าง payload สำหรับ QR Code ด้วยหมายเลขโทรศัพท์และจำนวนเงิน
     #[test]
-    fn test_create_qr() {
+    fn test_create_qr_phone_with_amount() {
         let mut qr = PromptPayQR::new("0812345678");
         qr.set_amount(100.50);
         let result = qr.create().unwrap();
         let data = result.to_string();
         assert!(!data.is_empty());
-        assert!(data.starts_with("000201"));
-        assert!(data.contains("01130066812345678")); // ตรวจสอบเบอร์โทรศัพท์ที่ถูกจัดรูปแบบ
-        assert!(data.contains("5406100.50")); // ตรวจสอบจำนวนเงิน (ความยาว 6 สำหรับ "100.50")
+        assert!(data.starts_with("000201010212")); // Dynamic QR
+        assert!(data.contains("01130066812345678")); // ตรวจสอบหมายเลขโทรศัพท์
+        assert!(data.contains("5406100.50")); // ตรวจสอบจำนวนเงิน
+        assert!(data.contains("5802TH")); // Country Code
+        assert!(data.contains("5303764")); // Currency Code
         assert!(data.len() >= 8);
         let crc_part = &data[data.len() - 8..];
         assert!(crc_part.starts_with("6304"));
         assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
     }
 
-    /// ทดสอบการสร้าง payload สำหรับ QR Code ที่ไม่มีจำนวนเงิน
+    /// ทดสอบการสร้าง payload สำหรับ QR Code ด้วยหมายเลขโทรศัพท์ที่ขึ้นต้นด้วย +66
     #[test]
-    fn test_create_qr_no_amount() {
+    fn test_create_qr_phone_plus_66() {
+        let mut qr = PromptPayQR::new("+66-8-1234-500 0");
+        qr.set_amount(100.50);
+        let result = qr.create().unwrap();
+        let data = result.to_string();
+        assert!(!data.is_empty());
+        assert!(data.starts_with("000201010212")); // Dynamic QR
+        assert!(data.contains("01130066812345000")); // ตรวจสอบหมายเลขโทรศัพท์
+        assert!(data.contains("5406100.50")); // ตรวจสอบจำนวนเงิน
+        assert!(data.contains("5802TH"));
+        assert!(data.contains("5303764"));
+        assert!(data.len() >= 8);
+        let crc_part = &data[data.len() - 8..];
+        assert!(crc_part.starts_with("6304"));
+        assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    /// ทดสอบการสร้าง payload สำหรับ QR Code ด้วยหมายเลขโทรศัพท์ที่ไม่มีจำนวนเงิน
+    #[test]
+    fn test_create_qr_phone_no_amount() {
         let qr = PromptPayQR::new("0812345678");
         let result = qr.create().unwrap();
         let data = result.to_string();
         assert!(!data.is_empty());
-        assert!(data.starts_with("000201010211"));
-        assert!(data.contains("01130066812345678")); // ตรวจสอบเบอร์โทรศัพท์ที่ถูกจัดรูปแบบ
+        assert!(data.starts_with("000201010211")); // Static QR
+        assert!(data.contains("01130066812345678")); // ตรวจสอบหมายเลขโทรศัพท์
         assert!(!data.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
+        assert!(data.contains("5802TH"));
+        assert!(data.contains("5303764"));
         assert!(data.len() >= 8);
         let crc_part = &data[data.len() - 8..];
         assert!(crc_part.starts_with("6304"));
@@ -260,17 +290,106 @@ mod tests {
 
     /// ทดสอบการสร้าง payload สำหรับ QR Code ด้วย Tax ID
     #[test]
-    fn test_generate_qr_tax_id() {
+    fn test_create_qr_tax_id() {
         let qr = PromptPayQR::new("1234567890123");
         let result = qr.create().unwrap();
         let data = result.to_string();
         assert!(!data.is_empty());
-        assert!(data.starts_with("000201010211"));
+        assert!(data.starts_with("000201010211")); // Static QR
         assert!(data.contains("02131234567890123")); // ตรวจสอบ Tax ID
         assert!(!data.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
+        assert!(data.contains("5802TH"));
+        assert!(data.contains("5303764"));
         assert!(data.len() >= 8);
         let crc_part = &data[data.len() - 8..];
         assert!(crc_part.starts_with("6304"));
         assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    /// ทดสอบการสร้าง payload สำหรับ QR Code ด้วย E-Wallet ID
+    #[test]
+    fn test_create_qr_ewallet_id() {
+        let qr = PromptPayQR::new("123456789012345");
+        let result = qr.create().unwrap();
+        let data = result.to_string();
+        assert!(!data.is_empty());
+        assert!(data.starts_with("000201010211")); // Static QR
+        assert!(data.contains("0315123456789012345")); // ตรวจสอบ E-Wallet ID
+        assert!(!data.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
+        assert!(data.contains("5802TH"));
+        assert!(data.contains("5303764"));
+        assert!(data.len() >= 8);
+        let crc_part = &data[data.len() - 8..];
+        assert!(crc_part.starts_with("6304"));
+        assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    /// ทดสอบการจัดการข้อผิดพลาดเมื่อ merchant_id ว่างเปล่า
+    #[test]
+    fn test_create_qr_empty_merchant_id() {
+        let qr = PromptPayQR::new("");
+        let result = qr.create();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Merchant ID is required");
+    }
+
+    /// ทดสอบการล้างข้อมูล (sanitize_target) สำหรับหมายเลขโทรศัพท์ที่มีตัวอักษรพิเศษ
+    #[test]
+    fn test_sanitize_target_phone() {
+        let qr = PromptPayQR::new("+66-8-1234-500 0");
+        let sanitized = qr.sanitize_target(&qr.merchant_id);
+        assert_eq!(sanitized, "66812345000");
+    }
+
+    /// ทดสอบการจัดรูปแบบ (format_target) สำหรับหมายเลขโทรศัพท์
+    #[test]
+    fn test_format_target_phone() {
+        let qr = PromptPayQR::new("0812345678");
+        let formatted = qr.format_target(&qr.sanitize_target(&qr.merchant_id));
+        assert_eq!(formatted, "0066812345678");
+    }
+
+    /// ทดสอบการจัดรูปแบบ (format_target) สำหรับ Tax ID
+    #[test]
+    fn test_format_target_tax_id() {
+        let qr = PromptPayQR::new("1234567890123");
+        let formatted = qr.format_target(&qr.sanitize_target(&qr.merchant_id));
+        assert_eq!(formatted, "1234567890123");
+    }
+
+    /// ทดสอบการจัดรูปแบบ (format_target) สำหรับ E-Wallet ID
+    #[test]
+    fn test_format_target_ewallet_id() {
+        let qr = PromptPayQR::new("123456789012345");
+        let formatted = qr.format_target(&qr.sanitize_target(&qr.merchant_id));
+        assert_eq!(formatted, "123456789012345");
+    }
+
+    /// ทดสอบการคำนวณ CRC - ใช้ payload จริงที่สร้างจาก create() method
+    #[test]
+    fn test_calculate_crc() {
+        let qr = PromptPayQR::new("0812345678");
+        let result = qr.create().unwrap();
+        let full_payload = result.to_string();
+
+        // แยก payload ที่ไม่รวม CRC (ตัด 4 หลักสุดท้ายออก) และเพิ่ม "6304"
+        let payload_without_crc = &full_payload[..full_payload.len() - 4];
+        let crc = qr.calculate_crc(payload_without_crc);
+        let expected_crc = &full_payload[full_payload.len() - 4..];
+
+        assert_eq!(format!("{:04X}", crc), expected_crc);
+    }
+
+    /// ทดสอบการคำนวณ CRC ด้วยค่าที่ทราบแน่นอน
+    #[test]
+    fn test_calculate_crc_known_value() {
+        let qr = PromptPayQR::new("0812345678");
+        // สร้าง payload จริงและใช้ส่วนที่ไม่รวม CRC
+        let result = qr.create().unwrap();
+        let full_payload = result.to_string();
+        let payload_without_crc = &full_payload[..full_payload.len() - 4];
+        let crc = qr.calculate_crc(payload_without_crc);
+        // ค่า CRC ที่คำนวณได้จริง
+        assert_eq!(format!("{:04X}", crc), "5D82");
     }
 }
