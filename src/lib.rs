@@ -42,6 +42,37 @@ pub struct PromptPayQR {
     currency_code: String, // รหัสสกุลเงิน (เช่น "764" สำหรับบาทไทย)
 }
 
+/// Trait สำหรับ Formatter ที่สามารถแปลงผลลัพธ์เป็นรูปแบบต่างๆ
+pub trait FormatterTrait {
+    /// แปลง payload เป็น String
+    fn to_string(&self) -> String;
+    // fn to_image_byte(&self)
+}
+
+pub struct Formatter {
+    payload: String,
+}
+
+impl Formatter {
+    /// สร้าง instance ใหม่ของ `Formatter`
+    /// # Arguments
+    /// * `payload` - ข้อมูลที่ได้จากการสร้าง QRCode
+    /// # Returns
+    /// instance ของ `Formatter`
+    pub fn new(payload: &str) -> Self {
+        Self {
+            payload: payload.to_string(),
+        }
+    }
+}
+
+impl FormatterTrait for Formatter {
+    /// คืนค่า payload ในรูปแบบ String
+    fn to_string(&self) -> String {
+        self.payload.clone()
+    }
+}
+
 impl PromptPayQR {
     /// สร้าง instance ใหม่ของ `PromptPayQR`
     /// # Arguments
@@ -95,8 +126,8 @@ impl PromptPayQR {
 
     /// สร้าง payload สำหรับ QR Code PromptPay ตามมาตรฐาน EMVCo
     /// # Returns
-    /// ผลลัพธ์เป็น `Result` ที่มีสตริง payload หรือข้อผิดพลาด
-    pub fn generate(&self) -> Result<String, PromptPayError> {
+    /// ผลลัพธ์เป็น `Result` ที่มี Formatter หรือข้อผิดพลาด
+    pub fn create(&self) -> Result<Formatter, PromptPayError> {
         if self.merchant_id.is_empty() {
             return Err(PromptPayError::new("Merchant ID is required"));
         }
@@ -163,7 +194,7 @@ impl PromptPayQR {
         let crc = self.calculate_crc(&payload);
         payload.push_str(&format!("{:04X}", crc));
 
-        Ok(payload)
+        Ok(Formatter::new(&payload))
     }
 
     /// คำนวณ CRC-16 (CCITT) สำหรับ payload เพื่อใช้ใน QR Code
@@ -196,31 +227,33 @@ mod tests {
 
     /// ทดสอบการสร้าง payload สำหรับ QR Code ที่มีจำนวนเงิน
     #[test]
-    fn test_generate_qr() {
+    fn test_create_qr() {
         let mut qr = PromptPayQR::new("0812345678");
         qr.set_amount(100.50);
-        let result = qr.generate().unwrap();
-        assert!(!result.is_empty());
-        assert!(result.starts_with("000201"));
-        assert!(result.contains("01130066812345678")); // ตรวจสอบเบอร์โทรศัพท์ที่ถูกจัดรูปแบบ
-        assert!(result.contains("5406100.50")); // ตรวจสอบจำนวนเงิน (ความยาว 6 สำหรับ "100.50")
-        assert!(result.len() >= 8);
-        let crc_part = &result[result.len() - 8..];
+        let result = qr.create().unwrap();
+        let data = result.to_string();
+        assert!(!data.is_empty());
+        assert!(data.starts_with("000201"));
+        assert!(data.contains("01130066812345678")); // ตรวจสอบเบอร์โทรศัพท์ที่ถูกจัดรูปแบบ
+        assert!(data.contains("5406100.50")); // ตรวจสอบจำนวนเงิน (ความยาว 6 สำหรับ "100.50")
+        assert!(data.len() >= 8);
+        let crc_part = &data[data.len() - 8..];
         assert!(crc_part.starts_with("6304"));
         assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     /// ทดสอบการสร้าง payload สำหรับ QR Code ที่ไม่มีจำนวนเงิน
     #[test]
-    fn test_generate_qr_no_amount() {
+    fn test_create_qr_no_amount() {
         let qr = PromptPayQR::new("0812345678");
-        let result = qr.generate().unwrap();
-        assert!(!result.is_empty());
-        assert!(result.starts_with("000201010211"));
-        assert!(result.contains("01130066812345678")); // ตรวจสอบเบอร์โทรศัพท์ที่ถูกจัดรูปแบบ
-        assert!(!result.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
-        assert!(result.len() >= 8);
-        let crc_part = &result[result.len() - 8..];
+        let result = qr.create().unwrap();
+        let data = result.to_string();
+        assert!(!data.is_empty());
+        assert!(data.starts_with("000201010211"));
+        assert!(data.contains("01130066812345678")); // ตรวจสอบเบอร์โทรศัพท์ที่ถูกจัดรูปแบบ
+        assert!(!data.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
+        assert!(data.len() >= 8);
+        let crc_part = &data[data.len() - 8..];
         assert!(crc_part.starts_with("6304"));
         assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -229,13 +262,14 @@ mod tests {
     #[test]
     fn test_generate_qr_tax_id() {
         let qr = PromptPayQR::new("1234567890123");
-        let result = qr.generate().unwrap();
-        assert!(!result.is_empty());
-        assert!(result.starts_with("000201010211"));
-        assert!(result.contains("02131234567890123")); // ตรวจสอบ Tax ID
-        assert!(!result.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
-        assert!(result.len() >= 8);
-        let crc_part = &result[result.len() - 8..];
+        let result = qr.create().unwrap();
+        let data = result.to_string();
+        assert!(!data.is_empty());
+        assert!(data.starts_with("000201010211"));
+        assert!(data.contains("02131234567890123")); // ตรวจสอบ Tax ID
+        assert!(!data.contains("54")); // ไม่มีฟิลด์จำนวนเงิน
+        assert!(data.len() >= 8);
+        let crc_part = &data[data.len() - 8..];
         assert!(crc_part.starts_with("6304"));
         assert!(crc_part[4..].chars().all(|c| c.is_ascii_hexdigit()));
     }
