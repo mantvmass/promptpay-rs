@@ -49,6 +49,7 @@ pub trait FormatterTrait {
     // fn to_image_byte(&self)
 }
 
+/// โครงสร้างสำหรับจัดการผลลัพธ์
 #[derive(Debug)]
 pub struct Formatter {
     payload: String,
