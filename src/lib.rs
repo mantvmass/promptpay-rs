@@ -2,6 +2,9 @@ use qrcode::{EcLevel, QrCode, Version};
 use std::error::Error;
 use std::fmt;
 
+// re-export qrcode
+pub use qrcode;
+
 /// ข้อผิดพลาดที่เกิดขึ้นในระหว่างการสร้าง PromptPay QR code
 #[derive(Debug)]
 pub struct PromptPayError {

@@ -15,7 +15,7 @@ Add `promptpay-rs` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-promptpay-rs = "0.3.0"
+promptpay-rs = "0.3.1"
 ```
 
 Then run:
@@ -29,9 +29,7 @@ cargo build
 Here is a quick example of how to use `promptpay-rs` to generate a PromptPay QR code payload:
 
 ```rust
-use promptpay_rs::{FormatterTrait, PromptPayQR};
-use qrcode::render::unicode;
-use qrcode::EcLevel;
+use promptpay_rs::{FormatterTrait, PromptPayQR, qrcode::EcLevel, qrcode::render::unicode};
 
 fn main() {
     let mut qr = PromptPayQR::new("0812345678");
@@ -54,7 +52,6 @@ fn main() {
         Err(e) => eprintln!("Error: {}", e),
     }
 }
-
 ```
 
 This will generate a value like:

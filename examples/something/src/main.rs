@@ -1,6 +1,4 @@
-use promptpay_rs::{FormatterTrait, PromptPayQR};
-use qrcode::render::unicode;
-use qrcode::EcLevel;
+use promptpay_rs::{FormatterTrait, PromptPayQR, qrcode::EcLevel, qrcode::render::unicode};
 
 fn main() {
     let mut qr = PromptPayQR::new("0812345678");
