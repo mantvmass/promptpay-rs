@@ -55,7 +55,7 @@ Comprehensive documentation is available at [docs.rs/promptpay-rs](https://docs.
 
 ## Contributing
 
-Contributions are welcome! Please submit a pull request or open an issue on the [GitHub repository](https://github.com/mantvmass/promptpay-rs) for bug reports, feature requests, or suggestions.
+Contributions are welcome! Please submit a pull request to branch `develop` or open an issue on the [GitHub repository](https://github.com/mantvmass/promptpay-rs) for bug reports, feature requests, or suggestions.
 
 ## Disclaimer
 
