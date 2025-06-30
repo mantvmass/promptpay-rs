@@ -1,3 +1,4 @@
+use qrcode::{EcLevel, QrCode, Version};
 use std::error::Error;
 use std::fmt;
 
@@ -46,7 +47,7 @@ pub struct PromptPayQR {
 pub trait FormatterTrait {
     /// แปลง payload เป็น String
     fn to_string(&self) -> String;
-    // fn to_image_byte(&self)
+    fn to_image(&self, ec_level: EcLevel) -> Result<QrCode, PromptPayError>;
 }
 
 /// โครงสร้างสำหรับจัดการผลลัพธ์
@@ -72,6 +73,21 @@ impl FormatterTrait for Formatter {
     /// คืนค่า payload ในรูปแบบ String
     fn to_string(&self) -> String {
         self.payload.clone()
+    }
+
+    /// สร้าง QrCode (0.14.1) instance จาก payload
+    /// # Arguments
+    /// * `version` - รุ่นของ QR Code
+    /// * `ec_level` - ระดับการแก้ไขข้อผิดพลาด
+    /// # Returns
+    /// `Result` ที่มี `QrCode` หากสำเร็จ หรือ `PromptPayError` หากล้มเหลว
+    fn to_image(&self, ec_level: EcLevel) -> Result<QrCode, PromptPayError> {
+        if self.payload.is_empty() {
+            return Err(PromptPayError::new("Payload cannot be empty"));
+        }
+
+        QrCode::with_version(self.payload.as_bytes(), Version::Normal(3), ec_level)
+            .map_err(|e| PromptPayError::new(&format!("Failed to create QRCode: {}", e)))
     }
 }
 
