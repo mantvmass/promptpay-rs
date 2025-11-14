@@ -92,6 +92,36 @@ impl fmt::Display for CurrencyCode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MerchantType {
+    MobileNumber,
+    TaxId,
+    EWalletId,
+}
+
+// กำหนดประเภทของรหัสผู้รับเงิน
+// - "01" สำหรับเบอร์โทรศัพท์
+// - "02" สำหรับ Tax ID
+// - "03" สำหรับ E-Wallet ID
+impl MerchantType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MerchantType::MobileNumber => "01",
+            MerchantType::TaxId => "02",
+            MerchantType::EWalletId => "03",
+        }
+    }
+
+    pub fn from_merchant_id(id: &str) -> Self {
+        let digits_only: String = id.chars().filter(|c| c.is_digit(10)).collect();
+        match digits_only.len() {
+            len if len >= 15 => MerchantType::EWalletId,
+            len if len >= 13 => MerchantType::TaxId,
+            _ => MerchantType::MobileNumber,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

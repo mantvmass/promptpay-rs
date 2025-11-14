@@ -1,10 +1,16 @@
-use crate::{CountryCode, CurrencyCode, Formatter, PromptPayError, crc::calculate_crc, utils::{format_target, sanitize_target}};
+use crate::{
+    CountryCode, CurrencyCode, Formatter, PromptPayError,
+    constants::MerchantType,
+    crc::calculate_crc,
+    utils::{format_target, sanitize_target},
+};
 
 /// โครงสร้างสำหรับสร้าง PromptPay QR code ตามมาตรฐาน EMVCo
 pub struct PromptPayQR {
-    merchant_id: String,       // รหัสผู้รับเงิน (เช่น เบอร์โทรศัพท์, Tax ID, หรือ E-Wallet ID)
-    amount: Option<f64>,       // จำนวนเงิน (ถ้ามี)
-    country_code: CountryCode, // รหัสประเทศ (เช่น "TH" สำหรับประเทศไทย)
+    merchant_id: String, // รหัสผู้รับเงิน (เช่น เบอร์โทรศัพท์, Tax ID, หรือ E-Wallet ID)
+    merchant_type: MerchantType,
+    amount: Option<f64>,         // จำนวนเงิน (ถ้ามี)
+    country_code: CountryCode,   // รหัสประเทศ (เช่น "TH" สำหรับประเทศไทย)
     currency_code: CurrencyCode, // รหัสสกุลเงิน (เช่น "764" สำหรับบาทไทย)
 }
 
@@ -15,8 +21,11 @@ impl PromptPayQR {
     /// # Returns
     /// instance ของ `PromptPayQR` ด้วยค่าเริ่มต้นสำหรับประเทศไทย (TH, 764)
     pub fn new(merchant_id: &str) -> Self {
+        let sanitized = sanitize_target(merchant_id);
+        let merchant_type = MerchantType::from_merchant_id(&sanitized);
         PromptPayQR {
             merchant_id: merchant_id.to_string(),
+            merchant_type,
             amount: None,
             country_code: CountryCode::Thailand,
             currency_code: CurrencyCode::THB,
@@ -41,9 +50,6 @@ impl PromptPayQR {
             return Err(PromptPayError::new("Merchant ID is required"));
         }
 
-        // sanitize ข้อมูลที่รับมา
-        let merchant_id = sanitize_target(&self.merchant_id);
-
         let mut payload = String::new();
 
         // เพิ่ม Payload Format Indicator (ID 00, ค่า "01" สำหรับ EMVCo QR)
@@ -62,18 +68,11 @@ impl PromptPayQR {
         let mut merchant_info = String::new();
         // เพิ่ม PromptPay AID (Application Identifier)
         merchant_info.push_str("0016A000000677010111"); // PromptPay AID
+
         // กำหนดประเภทของรหัสผู้รับเงิน
-        // - "01" สำหรับเบอร์โทรศัพท์
-        // - "02" สำหรับ Tax ID
-        // - "03" สำหรับ E-Wallet ID
-        let target_type = if merchant_id.len() >= 15 {
-            "03" // E-Wallet ID
-        } else if merchant_id.len() >= 13 {
-            "02" // Tax ID
-        } else {
-            "01" // Phone Number
-        };
-        let formatted_target = format_target(&merchant_id);
+        let target_type = self.merchant_type.as_str();
+
+        let formatted_target = format_target(&self.merchant_id);
         let merchant_id_field = format!(
             "{}{:02}{}",
             target_type,
@@ -122,12 +121,15 @@ impl PromptPayQR {
     pub fn currency_code(&self) -> CurrencyCode {
         self.currency_code
     }
+    pub fn merchant_type(&self) -> MerchantType {
+        self.merchant_type
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::FormatterTrait;
     use super::*;
+    use crate::FormatterTrait;
 
     /// ทดสอบการสร้าง payload สำหรับ QR Code ด้วยหมายเลขโทรศัพท์และจำนวนเงิน
     #[test]
