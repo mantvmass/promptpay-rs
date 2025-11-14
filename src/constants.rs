@@ -1,30 +1,42 @@
 use std::fmt;
 
-/// รหัสประเทศตามมาตรฐาน ISO 3166-1 alpha-2
-/// ปัจจุบันรองรับเฉพาะประเทศไทย เนื่องจาก PromptPay เป็นระบบเฉพาะของไทย
+/// Country code according to **ISO 3166-1 alpha-2** standard.
+///
+/// Currently only supports **Thailand** (`TH`) as PromptPay is Thailand-specific.
+///
 /// # Variants
-/// * `Thailand` - ประเทศไทย (รหัส: `"TH"`)
+/// * `Thailand` - Thailand (`"TH"`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CountryCode {
-    /// ประเทศไทย (ISO 3166-1: TH)
+    /// Thailand - ISO 3166-1 alpha-2 code: `"TH"`
     Thailand,
 }
 
 impl CountryCode {
-    /// แปลงเป็นรหัสประเทศ 2 ตัวอักษร (ISO 3166-1 alpha-2)
+    /// Returns the 2-letter country code as a static string.
+    ///
     /// # Returns
-    /// `&'static str` เช่น `"TH"`
+    /// `"TH"` for Thailand
     pub fn as_str(&self) -> &'static str {
         match self {
             CountryCode::Thailand => "TH",
         }
     }
 
-    /// สร้าง `CountryCode` จาก string (ไม่สนใจ case)
+    /// Parses a string into a `CountryCode` (case-insensitive).
+    ///
     /// # Arguments
-    /// * `s` - ข้อความ เช่น `"TH"`, `"th"`, `"Thailand"`, `"THAILAND"`
+    /// * `s` - Input string (e.g., `"TH"`, `"th"`, `"Thailand"`)
+    ///
     /// # Returns
-    /// `Some(CountryCode)` ถ้าถูกต้อง, `None` ถ้าไม่รู้จัก
+    /// * `Some(CountryCode)` if valid
+    /// * `None` if unknown
+    ///
+    /// # Example
+    /// ```rust
+    /// use promptpay_rs::CountryCode;
+    /// assert_eq!(CountryCode::from_str("th"), Some(CountryCode::Thailand));
+    /// ```
     pub fn from_str(s: &str) -> Option<Self> {
         match s.trim().to_uppercase().as_str() {
             "TH" | "THAILAND" => Some(CountryCode::Thailand),
@@ -39,36 +51,34 @@ impl fmt::Display for CountryCode {
     }
 }
 
-/// รหัสสกุลเงินตามมาตรฐาน ISO 4217
-/// ปัจจุบันรองรับเฉพาะบาทไทย เนื่องจาก PromptPay ใช้เฉพาะสกุลเงิน THB
+/// Currency code according to **ISO 4217** standard.
+///
+/// Only supports **Thai Baht (THB)** as required by PromptPay.
+///
 /// # Variants
-/// * `THB` - บาทไทย (รหัสตัวเลข: `"764"`, รหัสตัวอักษร: `"THB"`)
+/// * `THB` - Thai Baht (numeric: `"764"`, alphabetic: `"THB"`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurrencyCode {
-    /// บาทไทย (Thai Baht)
+    /// Thai Baht
     THB,
 }
 
 impl CurrencyCode {
-    /// รหัสสกุลเงินแบบตัวเลข 3 หลัก (ตาม EMVCo)
-    /// # Returns
-    /// เช่น `"764"` สำหรับบาทไทย
+    /// Returns the **3-digit numeric code** used in EMVCo QR (e.g., `"764"`).
     pub fn numeric_code(&self) -> &'static str {
         match self {
             CurrencyCode::THB => "764",
         }
     }
 
-    /// รหัสสกุลเงินแบบตัวอักษร 3 ตัว (ISO 4217)
-    /// # Returns
-    /// เช่น `"THB"`
+    /// Returns the **3-letter alphabetic code** (ISO 4217).
     pub fn alphabetic_code(&self) -> &'static str {
         match self {
             CurrencyCode::THB => "THB",
         }
     }
 
-    /// สร้างจากรหัสตัวเลข
+    /// Creates from numeric code string.
     pub fn from_numeric(s: &str) -> Option<Self> {
         match s.trim() {
             "764" => Some(CurrencyCode::THB),
@@ -76,7 +86,7 @@ impl CurrencyCode {
         }
     }
 
-    /// สร้างจากรหัสตัวอักษร
+    /// Creates from alphabetic code string (case-insensitive).
     pub fn from_alphabetic(s: &str) -> Option<Self> {
         match s.trim().to_uppercase().as_str() {
             "THB" => Some(CurrencyCode::THB),
@@ -86,12 +96,18 @@ impl CurrencyCode {
 }
 
 impl fmt::Display for CurrencyCode {
-    /// แสดงผลเป็นรหัสตัวเลข (ตามที่ EMVCo ต้องการใน QR)
+    /// Displays as **numeric code** (required in QR payload).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.numeric_code())
     }
 }
 
+/// Type of merchant identifier used in PromptPay.
+///
+/// Determines the tag used in Merchant Account Information field:
+/// - `"01"` → Mobile Number
+/// - `"02"` → Tax ID
+/// - `"03"` → E-Wallet ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MerchantType {
     MobileNumber,
@@ -99,11 +115,8 @@ pub enum MerchantType {
     EWalletId,
 }
 
-// กำหนดประเภทของรหัสผู้รับเงิน
-// - "01" สำหรับเบอร์โทรศัพท์
-// - "02" สำหรับ Tax ID
-// - "03" สำหรับ E-Wallet ID
 impl MerchantType {
+    /// Returns the 2-digit tag used in the payload.
     pub fn as_str(&self) -> &'static str {
         match self {
             MerchantType::MobileNumber => "01",
@@ -112,6 +125,22 @@ impl MerchantType {
         }
     }
 
+    /// Infers the merchant type from a **sanitized** ID (digits only).
+    ///
+    /// # Arguments
+    /// * `id` - Sanitized merchant ID (only digits)
+    ///
+    /// # Returns
+    /// Appropriate `MerchantType` based on length:
+    /// - ≥15 digits → `EWalletId`
+    /// - ≥13 digits → `TaxId`
+    /// - <13 digits → `MobileNumber`
+    ///
+    /// # Example
+    /// ```rust
+    /// use promptpay_rs::constants::MerchantType;
+    /// assert_eq!(MerchantType::from_merchant_id("1234567890123"), MerchantType::TaxId);
+    /// ```
     pub fn from_merchant_id(id: &str) -> Self {
         let digits_only: String = id.chars().filter(|c| c.is_digit(10)).collect();
         match digits_only.len() {
@@ -141,7 +170,7 @@ mod tests {
         assert_eq!(
             CountryCode::from_str("THAILAND"),
             Some(CountryCode::Thailand)
-        ); // เพิ่มบรรทัดนี้
+        );
         assert_eq!(CountryCode::from_str("US"), None);
     }
 

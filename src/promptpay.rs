@@ -5,24 +5,44 @@ use crate::{
     utils::{format_target, sanitize_target},
 };
 
-/// โครงสร้างสำหรับสร้าง PromptPay QR code ตามมาตรฐาน EMVCo
+/// Main struct for generating **PromptPay QR codes** compliant with **EMVCo** standards.
+///
+/// Supports:
+/// - Mobile number, Tax ID, E-Wallet ID
+/// - Optional amount (static/dynamic QR)
+/// - Automatic formatting and CRC calculation
+///
+/// # Example
+/// ```rust
+/// use promptpay_rs::{PromptPayQR, FormatterTrait};
+/// let mut qr = PromptPayQR::new("0812345678");
+/// qr.set_amount(100.0);
+/// let payload = qr.create().unwrap().to_string();
+/// ```
 pub struct PromptPayQR {
-    merchant_id: String, // รหัสผู้รับเงิน (เช่น เบอร์โทรศัพท์, Tax ID, หรือ E-Wallet ID)
-    merchant_type: MerchantType,
-    amount: Option<f64>,         // จำนวนเงิน (ถ้ามี)
-    country_code: CountryCode,   // รหัสประเทศ (เช่น "TH" สำหรับประเทศไทย)
-    currency_code: CurrencyCode, // รหัสสกุลเงิน (เช่น "764" สำหรับบาทไทย)
+    merchant_id: String,      // รหัสผู้รับเงินดิบ (เช่น "0812345678")
+    merchant_type: MerchantType, // ชนิดของรหัส (Mobile, Tax, EWallet)
+    amount: Option<f64>,      // จำนวนเงิน (ถ้ามี)
+    country_code: CountryCode,   // รหัสประเทศ (default: TH)
+    currency_code: CurrencyCode, // รหัสสกุลเงิน (default: 764)
 }
 
 impl PromptPayQR {
-    /// สร้าง instance ใหม่ของ `PromptPayQR`
+    /// Creates a new `PromptPayQR` instance with a merchant identifier.
+    ///
+    /// Automatically:
+    /// - Sanitizes the input
+    /// - Detects `merchant_type`
+    /// - Sets default country (`TH`) and currency (`THB`)
+    ///
     /// # Arguments
-    /// * `merchant_id` - รหัสผู้รับเงิน (เบอร์โทรศัพท์, Tax ID, หรือ E-Wallet ID)
+    /// * `merchant_id` - Phone number, Tax ID, or E-Wallet ID
+    ///
     /// # Returns
-    /// instance ของ `PromptPayQR` ด้วยค่าเริ่มต้นสำหรับประเทศไทย (TH, 764)
+    /// A new `PromptPayQR` instance
     pub fn new(merchant_id: &str) -> Self {
-        let sanitized = sanitize_target(merchant_id);
-        let merchant_type = MerchantType::from_merchant_id(&sanitized);
+        let sanitized = sanitize_target(merchant_id); // ล้างตัวอักษรที่ไม่ใช่ตัวเลข
+        let merchant_type = MerchantType::from_merchant_id(&sanitized); // ตรวจจับประเภท
         PromptPayQR {
             merchant_id: merchant_id.to_string(),
             merchant_type,
@@ -32,47 +52,61 @@ impl PromptPayQR {
         }
     }
 
-    /// กำหนดจำนวนเงินสำหรับการทำธุรกรรม
+    /// Sets the transaction amount (enables **dynamic QR**).
+    ///
     /// # Arguments
-    /// * `amount` - จำนวนเงิน (ในหน่วยบาท, รูปแบบทศนิยมสองตำแหน่ง)
+    /// * `amount` - Amount in THB (e.g., `150.75`)
+    ///
     /// # Returns
-    /// อ้างอิงถึง instance นี้เพื่อให้สามารถ chain method ได้
+    /// `&mut self` for method chaining
+    ///
+    /// # Example
+    /// ```rust
+    /// use promptpay_rs::PromptPayQR;
+    /// let mut qr = PromptPayQR::new("0812345678");
+    /// qr.set_amount(99.50);
+    /// ```
     pub fn set_amount(&mut self, amount: f64) -> &mut Self {
         self.amount = Some(amount);
         self
     }
 
-    /// สร้าง payload สำหรับ QR Code PromptPay ตามมาตรฐาน EMVCo
+    /// Generates the complete **EMVCo-compliant payload** and wraps it in a `Formatter`.
+    ///
     /// # Returns
-    /// ผลลัพธ์เป็น `Result` ที่มี Formatter หรือข้อผิดพลาด
+    /// * `Ok(Formatter)` - Ready for `.to_string()` or `.to_image()`
+    /// * `Err(PromptPayError)` - If merchant ID is empty
+    ///
+    /// # Payload Structure (TLV format)
+    /// - `00` Payload Format Indicator
+    /// - `01` Point of Initiation Method (`11` = static, `12` = dynamic)
+    /// - `29` Merchant Account Information (with PromptPay AID)
+    /// - `53` Currency Code
+    /// - `54` Amount (if present)
+    /// - `58` Country Code
+    /// - `63` CRC-16
     pub fn create(&self) -> Result<Formatter, PromptPayError> {
-        if self.merchant_id.is_empty() {
+        // ตรวจสอบว่ามีรหัสผู้รับเงินหรือไม่
+        if self.merchant_id.trim().is_empty() {
             return Err(PromptPayError::new("Merchant ID is required"));
         }
 
         let mut payload = String::new();
 
-        // เพิ่ม Payload Format Indicator (ID 00, ค่า "01" สำหรับ EMVCo QR)
+        // ID 00: Payload Format Indicator = "01"
         payload.push_str("000201");
 
-        // เพิ่ม Point of Initiation Method
-        // - "010211" สำหรับ QR แบบ static (ไม่มีจำนวนเงิน)
-        // - "010212" สำหรับ QR แบบ dynamic (มีจำนวนเงิน)
-        payload.push_str(if self.amount.is_some() {
-            "010212"
-        } else {
-            "010211"
-        });
+        // ID 01: Point of Initiation Method
+        // 11 = Static QR (no amount), 12 = Dynamic QR (with amount)
+        payload.push_str(if self.amount.is_some() { "010212" } else { "010211" });
 
-        // สร้าง Merchant Account Information (ID 29)
+        // ID 29: Merchant Account Information
         let mut merchant_info = String::new();
-        // เพิ่ม PromptPay AID (Application Identifier)
         merchant_info.push_str("0016A000000677010111"); // PromptPay AID
 
-        // กำหนดประเภทของรหัสผู้รับเงิน
-        let target_type = self.merchant_type.as_str();
+        let target_type = self.merchant_type.as_str(); // "01", "02", or "03"
+        let formatted_target = format_target(&sanitize_target(&self.merchant_id)); // จัดรูปแบบให้ถูกต้อง
 
-        let formatted_target = format_target(&self.merchant_id);
         let merchant_id_field = format!(
             "{}{:02}{}",
             target_type,
@@ -81,49 +115,39 @@ impl PromptPayQR {
         );
         merchant_info.push_str(&merchant_id_field);
 
-        // เพิ่มความยาวและข้อมูล Merchant Account Information
+        // เพิ่มความยาวของ Merchant Info
         let merchant_info_len = format!("{:02}", merchant_info.len());
         payload.push_str(&format!("29{}", merchant_info_len));
         payload.push_str(&merchant_info);
 
-        // เพิ่ม Country Code (ID 58, "TH" สำหรับประเทศไทย)
+        // ID 58: Country Code
         payload.push_str(&format!("5802{}", self.country_code));
 
-        // เพิ่ม Currency Code (ID 53, "764" สำหรับบาทไทย)
+        // ID 53: Currency Code
         payload.push_str(&format!("5303{}", self.currency_code));
 
-        // เพิ่มจำนวนเงิน (ถ้ามี) (ID 54)
+        // ID 54: Amount (ถ้ามี)
         if let Some(amount) = self.amount {
-            let amount_str = format!("{:.2}", amount);
+            let amount_str = format!("{:.2}", amount); // 2 ทศนิยม
             let amount_len = format!("{:02}", amount_str.len());
             payload.push_str(&format!("54{}", amount_len));
             payload.push_str(&amount_str);
         }
 
-        // เพิ่ม CRC (ID 63)
+        // ID 63: CRC (คำนวณจาก payload + "6304")
         payload.push_str("6304");
         let crc = calculate_crc(&payload);
-        payload.push_str(&format!("{:04X}", crc));
+        payload.push_str(&format!("{:04X}", crc)); // แปลงเป็น hex 4 หลัก
 
         Ok(Formatter::new(&payload))
     }
 
-    // Getters
-    pub fn merchant_id(&self) -> &str {
-        &self.merchant_id
-    }
-    pub fn amount(&self) -> Option<f64> {
-        self.amount
-    }
-    pub fn country_code(&self) -> CountryCode {
-        self.country_code
-    }
-    pub fn currency_code(&self) -> CurrencyCode {
-        self.currency_code
-    }
-    pub fn merchant_type(&self) -> MerchantType {
-        self.merchant_type
-    }
+    // --- Getters ---
+    pub fn merchant_id(&self) -> &str { &self.merchant_id }
+    pub fn amount(&self) -> Option<f64> { self.amount }
+    pub fn country_code(&self) -> CountryCode { self.country_code }
+    pub fn currency_code(&self) -> CurrencyCode { self.currency_code }
+    pub fn merchant_type(&self) -> MerchantType { self.merchant_type }
 }
 
 #[cfg(test)]
