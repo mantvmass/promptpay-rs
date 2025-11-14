@@ -1,9 +1,12 @@
-use qrcode::{EcLevel, QrCode, Version};
+use qrcode::{EcLevel, QrCode};
 use std::error::Error;
 use std::fmt;
 
 // re-export qrcode
 pub use qrcode;
+
+use crate::constants::{CountryCode, CurrencyCode};
+pub mod constants;
 
 /// ข้อผิดพลาดที่เกิดขึ้นในระหว่างการสร้าง PromptPay QR code
 #[derive(Debug)]
@@ -40,10 +43,10 @@ impl Error for PromptPayError {
 
 /// โครงสร้างสำหรับสร้าง PromptPay QR code ตามมาตรฐาน EMVCo
 pub struct PromptPayQR {
-    merchant_id: String,   // รหัสผู้รับเงิน (เช่น เบอร์โทรศัพท์, Tax ID, หรือ E-Wallet ID)
-    amount: Option<f64>,   // จำนวนเงิน (ถ้ามี)
-    country_code: String,  // รหัสประเทศ (เช่น "TH" สำหรับประเทศไทย)
-    currency_code: String, // รหัสสกุลเงิน (เช่น "764" สำหรับบาทไทย)
+    merchant_id: String,       // รหัสผู้รับเงิน (เช่น เบอร์โทรศัพท์, Tax ID, หรือ E-Wallet ID)
+    amount: Option<f64>,       // จำนวนเงิน (ถ้ามี)
+    country_code: CountryCode, // รหัสประเทศ (เช่น "TH" สำหรับประเทศไทย)
+    currency_code: CurrencyCode, // รหัสสกุลเงิน (เช่น "764" สำหรับบาทไทย)
 }
 
 /// Trait สำหรับ Formatter ที่สามารถแปลงผลลัพธ์เป็นรูปแบบต่างๆ
@@ -89,7 +92,7 @@ impl FormatterTrait for Formatter {
             return Err(PromptPayError::new("Payload cannot be empty"));
         }
 
-        QrCode::with_version(self.payload.as_bytes(), Version::Normal(3), ec_level)
+        QrCode::with_error_correction_level(self.payload.as_bytes(), ec_level)
             .map_err(|e| PromptPayError::new(&format!("Failed to create QRCode: {}", e)))
     }
 }
@@ -104,8 +107,8 @@ impl PromptPayQR {
         PromptPayQR {
             merchant_id: merchant_id.to_string(),
             amount: None,
-            country_code: "TH".to_string(),
-            currency_code: "764".to_string(),
+            country_code: CountryCode::Thailand,
+            currency_code: CurrencyCode::THB,
         }
     }
 
@@ -245,6 +248,20 @@ impl PromptPayQR {
             }
         }
         crc
+    }
+
+    // Getters
+    pub fn merchant_id(&self) -> &str {
+        &self.merchant_id
+    }
+    pub fn amount(&self) -> Option<f64> {
+        self.amount
+    }
+    pub fn country_code(&self) -> CountryCode {
+        self.country_code
+    }
+    pub fn currency_code(&self) -> CurrencyCode {
+        self.currency_code
     }
 }
 
@@ -411,5 +428,23 @@ mod tests {
         let crc = qr.calculate_crc(payload_without_crc);
         // ค่า CRC ที่คำนวณได้จริง
         assert_eq!(format!("{:04X}", crc), "5D82");
+    }
+
+    #[test]
+    fn test_promptpay_qr_creation() {
+        let mut qr = PromptPayQR::new("1234567890123");
+        qr.set_amount(150.75);
+        assert_eq!(qr.merchant_id(), "1234567890123");
+        assert_eq!(qr.amount(), Some(150.75));
+        assert_eq!(qr.country_code(), CountryCode::Thailand);
+        assert_eq!(qr.currency_code(), CurrencyCode::THB);
+    }
+
+    #[test]
+    fn test_promptpay_qr_no_amount() {
+        let qr = PromptPayQR::new("9876543210987");
+        assert_eq!(qr.amount(), None);
+        assert_eq!(qr.country_code().as_str(), "TH");
+        assert_eq!(qr.currency_code().numeric_code(), "764");
     }
 }
