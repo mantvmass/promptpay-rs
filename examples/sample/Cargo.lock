@@ -57,7 +57,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "something"
+name = "sample"
 version = "0.1.0"
 dependencies = [
  "promptpay-rs",

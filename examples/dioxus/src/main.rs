@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 use dioxus_logger::tracing::{self, Level};
 use promptpay_rs::{
-    qrcode::{render::svg, EcLevel},
     FormatterTrait, PromptPayQR,
+    qrcode::{EcLevel, render::svg},
 };
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
