@@ -1,7 +1,5 @@
-use promptpay_rs::{
-    FormatterTrait, PromptPayQR,
-    qrcode::{EcLevel, render::unicode},
-};
+use promptpay_rs::{PromptPayError, PromptPayQR};
+use qrcode::{EcLevel, QrCode, render::unicode};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize a new PromptPay QR object with a phone number
@@ -14,14 +12,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create the QR payload using the formatter
     // This payload is a string representation following PromptPay's standard
-    let formatter = qr.create()?;
+    let payload = qr.create()?;
 
     // Convert the formatter payload into a string
-    let payload = formatter.to_string();
     println!("Payload: {}", payload);
 
     // Generate the QR code image from the payload
-    let qr_code = formatter.to_image(EcLevel::M)?;
+    let qr_code = QrCode::with_error_correction_level(payload.as_bytes(), EcLevel::M)
+        .map_err(|e| PromptPayError::new(&format!("Failed to create QRCode: {}", e)))?;
 
     // Render the QR code in Unicode format for terminal display
     let image = qr_code

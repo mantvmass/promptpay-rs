@@ -6,7 +6,6 @@ Welcome to `promptpay-rs`, a lightweight Rust library for generating PromptPay Q
 
 - **EMVCo Compliance**: Generates PromptPay QR code payloads adhering to EMVCo Merchant Presented Mode standards.
 - **Flexible Input**: Supports Thai phone numbers, Tax IDs, and E-Wallet IDs with proper formatting.
-- **Uses `qrcode` = "0.14.1"**: Leverages the `qrcode` library to generate QR codes in various formats such as PNG, SVG, and more, with simplicity and flexibility.
 - **Builder Pattern**: Intuitive API for constructing payloads with optional amount specification.
 
 ## Installation
@@ -15,7 +14,7 @@ Add `promptpay-rs` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-promptpay-rs = "0.4.0"
+promptpay-rs = "0.5.0"
 ```
 
 Then run:
@@ -29,10 +28,7 @@ cargo build
 Here is a quick example of how to use `promptpay-rs` to generate a PromptPay QR code payload:
 
 ```rust
-use promptpay_rs::{
-    FormatterTrait, PromptPayQR,
-    qrcode::{EcLevel, render::unicode},
-};
+use promptpay_rs::PromptPayQR;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize a new PromptPay QR object with a phone number
@@ -45,28 +41,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create the QR payload using the formatter
     // This payload is a string representation following PromptPay's standard
-    let formatter = qr.create()?;
+    let payload = qr.create()?;
 
-    // Convert the formatter payload into a string
-    let payload = formatter.to_string();
+    // You can use this value with a QR code generation library (e.g., `qrcode`).
     println!("Payload: {}", payload);
-
-    // Generate the QR code image from the payload
-    let qr_code = formatter.to_image(EcLevel::M)?;
-
-    // Render the QR code in Unicode format for terminal display
-    let image = qr_code
-        .render::<unicode::Dense1x2>()
-        .dark_color(unicode::Dense1x2::Light)
-        .light_color(unicode::Dense1x2::Dark)
-        .build();
-
-    // Print the QR code in the terminal
-    println!("{}", image);
 
     Ok(())
 }
-
 ```
 
 This will generate a value like:
@@ -75,7 +56,7 @@ This will generate a value like:
 00020101021229370016A000000677010111011300668123456785802TH53037645406100.506304XXXX
 ```
 
-You can use this value with a QR code generation library (e.g., `qrcode`) or default function `to_image` to create a scannable QR code for Thai banking apps.
+You can use this value with a QR code generation library (e.g., `qrcode`).
 
 <img src="docs/example.gif">
 

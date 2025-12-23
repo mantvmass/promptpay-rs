@@ -12,7 +12,7 @@
 //!
 //! ## Example
 //! ```rust
-//! use promptpay_rs::{PromptPayQR, FormatterTrait};
+//! use promptpay_rs::PromptPayQR;
 //!
 //! let mut qr = PromptPayQR::new("0812345678");
 //! qr.set_amount(150.75);
@@ -22,13 +22,10 @@
 
 pub mod constants;
 pub mod error;
-pub mod formatter;
 pub mod promptpay;
 pub mod crc;
 pub mod utils;
 
-pub use qrcode;
 pub use error::PromptPayError;
-pub use formatter::{Formatter, FormatterTrait};
 pub use promptpay::PromptPayQR;
 pub use constants::{CountryCode, CurrencyCode};
