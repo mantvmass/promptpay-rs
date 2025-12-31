@@ -10,11 +10,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The amount is in THB (Thai Baht)
     qr.set_amount(250.75);
 
-    // Create the QR payload using the formatter
     // This payload is a string representation following PromptPay's standard
     let payload = qr.create()?;
-
-    // Convert the formatter payload into a string
     println!("Payload: {}", payload);
 
     // Generate the QR code image from the payload
