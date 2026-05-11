@@ -1,5 +1,13 @@
 # PromptPay-RS
 
+[![Linux](https://github.com/mantvmass/promptpay-rs/actions/workflows/linux.yml/badge.svg)](https://github.com/mantvmass/promptpay-rs/actions/workflows/linux.yml)
+[![macOS](https://github.com/mantvmass/promptpay-rs/actions/workflows/macos.yml/badge.svg)](https://github.com/mantvmass/promptpay-rs/actions/workflows/macos.yml)
+[![Windows](https://github.com/mantvmass/promptpay-rs/actions/workflows/windows.yml/badge.svg)](https://github.com/mantvmass/promptpay-rs/actions/workflows/windows.yml)
+[![Crates.io](https://img.shields.io/crates/v/promptpay-rs.svg)](https://crates.io/crates/promptpay-rs)
+[![Docs.rs](https://docs.rs/promptpay-rs/badge.svg)](https://docs.rs/promptpay-rs)
+[![Rustc](https://img.shields.io/badge/rustc-1.85%2B-blue.svg)](https://www.rust-lang.org)
+[![License](https://img.shields.io/crates/l/promptpay-rs.svg)](https://github.com/mantvmass/promptpay-rs/blob/main/LICENSE)
+
 Welcome to `promptpay-rs`, a lightweight Rust library for generating PromptPay QR code compliant with EMVCo standards. This library is designed with modern Rust practices, providing a simple and efficient interface to create QR code for Thai payment systems, supporting phone numbers and Tax IDs.
 
 ## Features
