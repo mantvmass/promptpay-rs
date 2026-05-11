@@ -37,6 +37,7 @@ impl CountryCode {
     /// use promptpay_rs::CountryCode;
     /// assert_eq!(CountryCode::from_str("th"), Some(CountryCode::Thailand));
     /// ```
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.trim().to_uppercase().as_str() {
             "TH" | "THAILAND" => Some(CountryCode::Thailand),
@@ -142,7 +143,7 @@ impl MerchantType {
     /// assert_eq!(MerchantType::from_merchant_id("1234567890123"), MerchantType::TaxId);
     /// ```
     pub fn from_merchant_id(id: &str) -> Self {
-        let digits_only: String = id.chars().filter(|c| c.is_digit(10)).collect();
+        let digits_only: String = id.chars().filter(|c| c.is_ascii_digit()).collect();
         match digits_only.len() {
             len if len >= 15 => MerchantType::EWalletId,
             len if len >= 13 => MerchantType::TaxId,

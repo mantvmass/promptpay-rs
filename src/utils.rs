@@ -15,7 +15,7 @@
 /// ```
 pub fn sanitize_target(id: &str) -> String {
     // กรองเฉพาะตัวเลข 0-9 ออกมา
-    id.chars().filter(|c| c.is_digit(10)).collect()
+    id.chars().filter(|c| c.is_ascii_digit()).collect()
 }
 
 /// Formats a **sanitized** merchant ID according to PromptPay rules.

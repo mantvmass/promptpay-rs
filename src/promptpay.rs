@@ -20,9 +20,9 @@ use crate::{
 /// let payload = qr.create().unwrap();
 /// ```
 pub struct PromptPayQR {
-    merchant_id: String,      // รหัสผู้รับเงินดิบ (เช่น "0812345678")
+    merchant_id: String,         // รหัสผู้รับเงินดิบ (เช่น "0812345678")
     merchant_type: MerchantType, // ชนิดของรหัส (Mobile, Tax, EWallet)
-    amount: Option<f64>,      // จำนวนเงิน (ถ้ามี)
+    amount: Option<f64>,         // จำนวนเงิน (ถ้ามี)
     country_code: CountryCode,   // รหัสประเทศ (default: TH)
     currency_code: CurrencyCode, // รหัสสกุลเงิน (default: 764)
 }
@@ -98,7 +98,11 @@ impl PromptPayQR {
 
         // ID 01: Point of Initiation Method
         // 11 = Static QR (no amount), 12 = Dynamic QR (with amount)
-        payload.push_str(if self.amount.is_some() { "010212" } else { "010211" });
+        payload.push_str(if self.amount.is_some() {
+            "010212"
+        } else {
+            "010211"
+        });
 
         // ID 29: Merchant Account Information
         let mut merchant_info = String::new();
@@ -143,11 +147,21 @@ impl PromptPayQR {
     }
 
     // --- Getters ---
-    pub fn merchant_id(&self) -> &str { &self.merchant_id }
-    pub fn amount(&self) -> Option<f64> { self.amount }
-    pub fn country_code(&self) -> CountryCode { self.country_code }
-    pub fn currency_code(&self) -> CurrencyCode { self.currency_code }
-    pub fn merchant_type(&self) -> MerchantType { self.merchant_type }
+    pub fn merchant_id(&self) -> &str {
+        &self.merchant_id
+    }
+    pub fn amount(&self) -> Option<f64> {
+        self.amount
+    }
+    pub fn country_code(&self) -> CountryCode {
+        self.country_code
+    }
+    pub fn currency_code(&self) -> CurrencyCode {
+        self.currency_code
+    }
+    pub fn merchant_type(&self) -> MerchantType {
+        self.merchant_type
+    }
 }
 
 #[cfg(test)]

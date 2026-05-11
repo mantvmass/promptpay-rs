@@ -21,11 +21,11 @@
 //! ```
 
 pub mod constants;
+pub mod crc;
 pub mod error;
 pub mod promptpay;
-pub mod crc;
 pub mod utils;
 
+pub use constants::{CountryCode, CurrencyCode};
 pub use error::PromptPayError;
 pub use promptpay::PromptPayQR;
-pub use constants::{CountryCode, CurrencyCode};

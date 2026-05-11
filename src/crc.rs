@@ -24,7 +24,8 @@ pub fn calculate_crc(data: &str) -> u16 {
     // วนลูปทุก byte ในข้อมูล
     for byte in data.bytes() {
         crc ^= (byte as u16) << 8; // XOR กับ byte ที่ shift ไปทางซ้าย 8 บิต
-        for _ in 0..8 { // วน 8 บิต
+        for _ in 0..8 {
+            // วน 8 บิต
             if (crc & 0x8000) != 0 {
                 crc = (crc << 1) ^ polynomial; // ถ้า MSB เป็น 1 → XOR กับ polynomial
             } else {
