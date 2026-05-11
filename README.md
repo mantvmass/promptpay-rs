@@ -22,7 +22,7 @@ Add `promptpay-rs` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-promptpay-rs = "0.5.0"
+promptpay-rs = "0.5"
 ```
 
 Then run:
